@@ -10,14 +10,14 @@ Parameters:
     Default: loan-app
   GitHubRepo:
     Type: String
-    Description: GitHub repo name (e.g., yourusername/loan-app-backend)
+    Description: Full GitHub repo URL (e.g., https://github.com/user/repo.git)
   GitHubBranch:
     Type: String
     Default: main
   GitHubToken:
     Type: String
     NoEcho: true
-    Description: GitHub Personal Access Token (stored in Secrets Manager preferred)
+    Description: GitHub Personal Access Token
 
 Resources:
   # S3 Bucket for frontend
@@ -84,7 +84,7 @@ Resources:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
 
-  # IAM Role for CodePipeline
+  # IAM Role for CodePipeline and CodeBuild
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -93,7 +93,9 @@ Resources:
         Statement:
         - Effect: Allow
           Principal:
-            Service: codepipeline.amazonaws.com
+            Service:
+            - codepipeline.amazonaws.com
+            - codebuild.amazonaws.com
           Action: sts:AssumeRole
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/AdministratorAccess
@@ -104,26 +106,23 @@ Resources:
     Properties:
       BucketName: !Sub "${ProjectName}-artifacts"
 
-  # CodeBuild Project
+  # CodeBuild Project (with sourceType and artifactType set to CODEPIPELINE)
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: !Sub "${ProjectName}-build"
       Source:
-        Type: GITHUB
-        Location: !Ref GitHubRepo
-        GitCloneDepth: 1
+        Type: CODEPIPELINE
+      Artifacts:
+        Type: CODEPIPELINE
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/standard:7.0
         Type: LINUX_CONTAINER
         PrivilegedMode: true
       ServiceRole: !Ref CodePipelineServiceRole
-      Artifacts:
-        Type: CODEPIPELINE
-      SourceVersion: !Ref GitHubBranch
 
-  # CodePipeline using GitHub
+  # CodePipeline using GitHub source
   CICDPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -144,8 +143,8 @@ Resources:
           OutputArtifacts:
           - Name: SourceOutput
           Configuration:
-            Owner: !Select [ 0, !Split [ "/", !Ref GitHubRepo ] ]
-            Repo: !Select [ 1, !Split [ "/", !Ref GitHubRepo ] ]
+            Owner: !Select [ 3, !Split [ "/", !Ref GitHubRepo ] ]
+            Repo: !Select [ 4, !Split [ "/", !Ref GitHubRepo ] ]
             Branch: !Ref GitHubBranch
             OAuthToken: !Ref GitHubToken
           RunOrder: 1
