@@ -1,29 +1,30 @@
 version: 0.2
+
 env:
   variables:
-    AWS_ACCOUNT_ID: "730335439345"
-    AWS_REGION: "us-east-1"
+    AWS_REGION: us-east-1
+    AWS_ACCOUNT_ID: 730335439345
 
 phases:
   pre_build:
     commands:
-    - echo Logging in to Amazon ECR...
-    - REPOSITORY_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/loan-app-backend
-    - IMAGE_TAG=latest
-    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+      - echo Logging in to Amazon ECR...
+      - REPOSITORY_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/loan-app-backend
+      - IMAGE_TAG=latest
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
 
   build:
     commands:
-    - echo Building Docker image...
-    - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+      - echo Building Docker image...
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
 
   post_build:
     commands:
-    - echo Pushing image to ECR...
-    - docker push $REPOSITORY_URI:$IMAGE_TAG
-    - echo Writing imagedefinitions.json
-    - printf '[{\"name\":\"backend\",\"imageUri\":\"%s\"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - echo Pushing Docker image...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Creating imagedefinitions.json file...
+      - echo "[{\"name\":\"backend\",\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\"}]" > imagedefinitions.json
 
 artifacts:
   files:
-  - imagedefinitions.json
+    - imagedefinitions.json
